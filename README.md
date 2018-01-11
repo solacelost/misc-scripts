@@ -10,6 +10,10 @@ Especially useful if you maintain a seperate boot partition. Removes all but the
 ---
 A utility that allows for multiple users to open logging sessions on a single logfile, executing commands and logging their output as well as their notes together in organized projects with timestamps. You can alternatively just use it in single-user mode and still get great benefit. Used to generate raw "opnotes" while working
 
+### nmappoll
+---
+A tool that continuously nmaps a host (or whatever you tell it to) and gives you clean output information on completion of the first scan, as well as a summary of the differences (marked by +, -, or ~), after each subsequent scan. Saves first and most recent scans in XML format automatically, so there's more you can do with that if you like. Good to watch changes take effect, make sure changes _aren't_ taking effect, etc. Requires [libnmap](http://libnmap.readthedocs.io/en/latest) be in your current Python environment.
+
 ### phonehome
 ---
 A port knocking script for interfacing with SSH (or some other service, I suppose) hidden behind a port-knocking daemon, such as [knockd](https://github.com/jvinet/knock). Come default configuration parameters are set inside the script, and then it's customizable. There's a pretty thorough help page, but some code review might help, too.
