@@ -20,6 +20,8 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+# I just want to add that I know I didn't comment anything - I'll come through and document this a little better later. I'm sorry, I'm a bad person
+
 import sys
 try:
    from libnmap.process import NmapProcess
