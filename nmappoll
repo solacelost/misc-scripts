@@ -1,0 +1,214 @@
+#!/usr/bin/env python
+# Copyright (c) 2018 James P. Harmison
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+import sys
+try:
+   from libnmap.process import NmapProcess
+   from libnmap.parser import NmapParser, NmapParserException
+except:
+   sys.stderr.write('You need libnmap to use this file.\n`pip install libnmap` or source your virtualenv.\n')
+   sys.stderr.flush()
+   exit(1)
+
+def doScan(targets, options):
+   parsed= None
+   nmproc = NmapProcess(targets, options)
+   nmproc.sudo_run_background()
+
+   while nmproc.is_running():
+      if datetime.fromtimestamp(float(nmproc.etc)) > datetime.now():
+         timeRemaining=str(datetime.fromtimestamp(float(nmproc.etc)) - datetime.now()).split('.',2)[0]
+      else:
+         timeRemaining=str(timedelta(seconds=1))
+      progbar="\rNmap status: ["
+      progbar+='=' * (int(float(nmproc.progress)) / 2)
+      progbar+=' ' * (50 - (int(float(nmproc.progress)) / 2))
+      progbar+='] {0: >3}% (ETA: {1})'.format(nmproc.progress, timeRemaining)
+      progbar+=' ' * (120 - len(progbar))
+      sys.stdout.write(progbar)
+      sys.stdout.flush()
+      sleep(1)
+   finalOut='\rNmap status: [' + '=' * 50 + '] 100% (ETA: Done)'
+   sys.stdout.write(finalOut + ' ' * (120-len(finalOut)))
+   sys.stdout.flush()
+   if nmproc.rc != 0:
+      sys.stderr.write("nmap scan failed: {0}".format(nmproc.stderr))
+      return False
+   try:
+		parsed = NmapParser.parse(nmproc.stdout)
+   except NmapParserException as e:
+      sys.stderr.write("Exception raised while parsing scan: {0}".format(e.msg))
+      return False
+   return (parsed, nmproc.stdout)
+
+
+def prettyOutput(nmapParsed):
+   print nmapParsed.summary
+   for host in nmapParsed.hosts:
+      print host.address
+      for hostname in host.hostnames:
+         print '   ', hostname
+      for os in host.os.osmatches:
+         print '    {0} - {1}'.format(os.name, os.accuracy) + "%"
+      for port in host.get_open_ports():
+         service=host.get_service(port[0],port[1])
+         portline='\t{0: >5}/{1} {2: <18}'.format(port[0],port[1],service.service)
+         if service.banner:
+            portline+=service.banner
+         print portline
+
+
+def nested_obj(objname):
+    rval = None
+    splitted = objname.split("::")
+    if len(splitted) == 2:
+        rval = splitted
+    return rval
+
+
+def print_diff_added(obj1, obj2, added):
+    for akey in added:
+        nested = nested_obj(akey)
+        if nested is not None:
+            if nested[0] == 'NmapHost':
+                subobj1 = obj1.get_host_byid(nested[1])
+            elif nested[0] == 'NmapService':
+                subobj1 = obj1.get_service_byid(nested[1])
+            print("+ {0}".format(subobj1))
+        else:
+            print("+ {0} {1}: {2}".format(obj1, akey, getattr(obj1, akey)))
+
+
+def print_diff_removed(obj1, obj2, removed):
+    for rkey in removed:
+        nested = nested_obj(rkey)
+        if nested is not None:
+            if nested[0] == 'NmapHost':
+                subobj2 = obj2.get_host_byid(nested[1])
+            elif nested[0] == 'NmapService':
+                subobj2 = obj2.get_service_byid(nested[1])
+            print("- {0}".format(subobj2))
+        else:
+            print("- {0} {1}: {2}".format(obj2, rkey, getattr(obj2, rkey)))
+
+
+def print_diff_changed(obj1, obj2, changes):
+    for mkey in changes:
+        nested = nested_obj(mkey)
+        if nested is not None:
+            if nested[0] == 'NmapHost':
+                subobj1 = obj1.get_host_byid(nested[1])
+                subobj2 = obj2.get_host_byid(nested[1])
+            elif nested[0] == 'NmapService':
+                subobj1 = obj1.get_service_byid(nested[1])
+                subobj2 = obj2.get_service_byid(nested[1])
+            print_diff(subobj1, subobj2)
+        else:
+            print("~ {0} {1}: {2} => {3}".format(obj1, mkey,
+                                                 getattr(obj2, mkey),
+                                                 getattr(obj1, mkey)))
+
+
+def print_diff(obj1, obj2):
+    ndiff = obj1.diff(obj2)
+
+    print_diff_changed(obj1, obj2, ndiff.changed())
+    print_diff_added(obj1, obj2, ndiff.added())
+    print_diff_removed(obj1, obj2, ndiff.removed())
+
+
+def main():
+   argParser = argparse.ArgumentParser(prog='NmapPoll',
+      formatter_class=argparse.RawDescriptionHelpFormatter,
+      description='''Polls hosts with nmap at an interval, reporting any deviations from the
+      starting scan on a per-host basis.''',
+      epilog='''                              ***NOTE***
+You should NOT specify an output file, as this will not allow the parser to
+work correctly. Default behavior is to output the start and latest runs in
+XML format in your current directory.
+Also, please run as root (or with sudo) if you\'ve set a long interval or are
+scanning a large number of hosts.''')
+   argParser.add_argument('--delay','-d',metavar='SECS',
+      type=int,
+      default=0,
+      help='Number of seconds to wait after each scan completion before beginning the next round')
+   argParser.add_argument('--no-files','-n',
+      action='store_true',
+      dest='noFiles',
+      default=False,
+      help='Do not write outputs to XML files following the start and latest scans, saving only what it shows on the screen (not recommended!)')
+   argParser.add_argument('hosts', nargs=1,metavar='HOSTS',
+      help='Nmap-style host specification (see `man nmap` for more details)')
+   argParser.add_argument('options', nargs=argparse.REMAINDER,metavar='...',
+      help='Nmap-style option switches specifying scan type, speed, ports, etc.')
+
+   myArgs = argParser.parse_args()
+
+   for option in myArgs.options:
+      if option[0:1] == '-o':
+         sys.stderr.write('You can not use nmap\'s output specifiers here.')
+         exit(1)
+
+   print 'Running initial scan on {0} now ({1}).'.format(myArgs.hosts, str(datetime.now()).split('.',2)[0])
+   startScan, startScanOut = doScan(myArgs.hosts, ' '.join(myArgs.options))
+   if not myArgs.noFiles:
+      with open('startScan.xml', 'w') as f:
+         try:
+            f.write(startScanOut)
+         except IOError as e:
+            sys.stderr.write('Exception raised while writing file: {0}'.format(e.msg))
+            sys.stderr.write('Continuing....')
+   sys.stdout.write('\n')
+   prettyOutput(startScan)
+   sys.stdout.write('\n')
+   while True:
+      sys.stdout.write('\n')
+      if myArgs.delay:
+         thisDelay = myArgs.delay
+         while thisDelay > 0:
+            sys.stdout.write('\rWaiting for {0} more seconds before starting...'.format(thisDelay))
+            sys.stdout.flush()
+            sleep(1)
+            thisDelay -= 1
+      sys.stdout.write('\rRunning latest scan on {0} now ({1}).\n'.format(myArgs.hosts, str(datetime.now()).split('.',2)[0]))
+      sys.stdout.flush()
+      latestScan, latestScanOut = doScan(myArgs.hosts, ' '.join(myArgs.options))
+      if not myArgs.noFiles:
+         with open('latestScan.xml', 'w') as f:
+            try:
+               f.write(latestScanOut)
+            except IOError as e:
+               sys.stderr.write('Exception raised while writing file: {0}'.format(e.msg))
+               sys.stderr.write('Continuing....')
+      nmDiffHosts = [ x for x in startScan.diff(latestScan).changed() if 'NmapHost' in x ]
+      if len(nmDiffHosts) > 0:
+         sys.stdout.write('\n')
+         print_diff(latestScan, startScan)
+      startScan = latestScan
+
+if __name__ == '__main__':
+   import argparse, datetime
+   from pydoc import pager
+   from select import select
+   from datetime import datetime, timedelta
+   from time import sleep
+   main()
