@@ -20,9 +20,9 @@
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-# I just want to add that I know I didn't comment anything - I'll come through and document this a little better later. I'm sorry, I'm a bad person
-
 import sys
+from datetime import datetime, timedelta
+from time import sleep
 try:
    from libnmap.process import NmapProcess
    from libnmap.parser import NmapParser, NmapParserException
@@ -31,16 +31,26 @@ except:
    sys.stderr.flush()
    exit(1)
 
+# doScan conducts a scan on [targets] with [options] and returns a tuple
+#  of the NmapParser object and stdout from the process.
 def doScan(targets, options):
    parsed= None
    nmproc = NmapProcess(targets, options)
+   # Will ask for sudoer password if not root already, but will continue
+   #  to do this if your scans take longer than the 15 minutes or
+   #  whatever your sudoers cache is set to.
    nmproc.sudo_run_background()
 
+   # Status display throughout scan
    while nmproc.is_running():
+      # The time remaining goes a bit crazy if it hits negative, so we
+      #  just set it to 1 second if nmap has (apparently) no idea how
+      #  much longer it'll take.
       if datetime.fromtimestamp(float(nmproc.etc)) > datetime.now():
          timeRemaining=str(datetime.fromtimestamp(float(nmproc.etc)) - datetime.now()).split('.',2)[0]
       else:
          timeRemaining=str(timedelta(seconds=1))
+      # Fixed length progress bar with percentage and time estimate
       progbar="\rNmap status: ["
       progbar+='=' * (int(float(nmproc.progress)) / 2)
       progbar+=' ' * (50 - (int(float(nmproc.progress)) / 2))
@@ -49,20 +59,26 @@ def doScan(targets, options):
       sys.stdout.write(progbar)
       sys.stdout.flush()
       sleep(1)
+   # When it finishes, sometimes it says 0% or 99%, so let's just clean
+   #  that up
    finalOut='\rNmap status: [' + '=' * 50 + '] 100% (ETA: Done)'
    sys.stdout.write(finalOut + ' ' * (120-len(finalOut)))
    sys.stdout.flush()
+   # Error handling
    if nmproc.rc != 0:
       sys.stderr.write("nmap scan failed: {0}".format(nmproc.stderr))
-      return False
+      return (None, None)
+   # Try to parse it
    try:
 		parsed = NmapParser.parse(nmproc.stdout)
    except NmapParserException as e:
       sys.stderr.write("Exception raised while parsing scan: {0}".format(e.msg))
-      return False
+      return (None, None)
    return (parsed, nmproc.stdout)
 
-
+# Produces a moderately useful, extremely compact, output of the things
+#  that probably matter to you (at least the ones that matter to me)
+#  from a parsed Nmap scan.
 def prettyOutput(nmapParsed):
    print nmapParsed.summary
    for host in nmapParsed.hosts:
@@ -78,14 +94,16 @@ def prettyOutput(nmapParsed):
             portline+=service.banner
          print portline
 
-
+# All of the following functions serve to make the diffs work easily,
+#  but they were lifted straight from the libnmap documentation (under
+#  CC) - https://libnmap.readthedocs.io/en/latest/
+# This wheel worked fine, no need to re-invent here.
 def nested_obj(objname):
     rval = None
     splitted = objname.split("::")
     if len(splitted) == 2:
         rval = splitted
     return rval
-
 
 def print_diff_added(obj1, obj2, added):
     for akey in added:
@@ -99,7 +117,6 @@ def print_diff_added(obj1, obj2, added):
         else:
             print("+ {0} {1}: {2}".format(obj1, akey, getattr(obj1, akey)))
 
-
 def print_diff_removed(obj1, obj2, removed):
     for rkey in removed:
         nested = nested_obj(rkey)
@@ -111,7 +128,6 @@ def print_diff_removed(obj1, obj2, removed):
             print("- {0}".format(subobj2))
         else:
             print("- {0} {1}: {2}".format(obj2, rkey, getattr(obj2, rkey)))
-
 
 def print_diff_changed(obj1, obj2, changes):
     for mkey in changes:
@@ -129,16 +145,17 @@ def print_diff_changed(obj1, obj2, changes):
                                                  getattr(obj2, mkey),
                                                  getattr(obj1, mkey)))
 
-
 def print_diff(obj1, obj2):
     ndiff = obj1.diff(obj2)
 
     print_diff_changed(obj1, obj2, ndiff.changed())
     print_diff_added(obj1, obj2, ndiff.added())
     print_diff_removed(obj1, obj2, ndiff.removed())
+# The last of the lifted-parsing functions
 
-
+# main()
 def main():
+   # argparse handling
    argParser = argparse.ArgumentParser(prog='NmapPoll',
       formatter_class=argparse.RawDescriptionHelpFormatter,
       description='''Polls hosts with nmap at an interval, reporting any deviations from the
@@ -162,28 +179,38 @@ scanning a large number of hosts.''')
       help='Nmap-style host specification (see `man nmap` for more details)')
    argParser.add_argument('options', nargs=argparse.REMAINDER,metavar='...',
       help='Nmap-style option switches specifying scan type, speed, ports, etc.')
-
    myArgs = argParser.parse_args()
 
+   # Please don't try to specify -o switches with libnmap.process - it's
+   #  already doing -oX- to dump XML to stdout
    for option in myArgs.options:
       if option[0:1] == '-o':
          sys.stderr.write('You can not use nmap\'s output specifiers here.')
          exit(1)
 
+   # Run baseline scan to start
    print 'Running initial scan on {0} now ({1}).'.format(myArgs.hosts, str(datetime.now()).split('.',2)[0])
    startScan, startScanOut = doScan(myArgs.hosts, ' '.join(myArgs.options))
-   if not myArgs.noFiles:
-      with open('startScan.xml', 'w') as f:
-         try:
-            f.write(startScanOut)
-         except IOError as e:
-            sys.stderr.write('Exception raised while writing file: {0}'.format(e.msg))
-            sys.stderr.write('Continuing....')
+   # Make sure we got a good return
+   if startScan:
+      # Write XML outfile if configured to
+      if not myArgs.noFiles:
+         with open('startScan.xml', 'w') as f:
+            try:
+               f.write(startScanOut)
+            except IOError as e:
+               sys.stderr.write('Exception raised while writing file: {0}'.format(e.msg))
+               sys.stderr.write('Continuing....')
+      sys.stdout.write('\n')
+      # Summary of our startscan to give you your instant gratification
+      prettyOutput(startScan)
    sys.stdout.write('\n')
-   prettyOutput(startScan)
-   sys.stdout.write('\n')
+
+   # Run our consecutive scans until we Ctrl+C them
    while True:
       sys.stdout.write('\n')
+      # Delay countdown enabling us to provide some output, pretty close
+      #  to accurate doing like this and it's close enough
       if myArgs.delay:
          thisDelay = myArgs.delay
          while thisDelay > 0:
@@ -191,26 +218,26 @@ scanning a large number of hosts.''')
             sys.stdout.flush()
             sleep(1)
             thisDelay -= 1
+      # Overwrite our delay countdown, start latest cyclic scan
       sys.stdout.write('\rRunning latest scan on {0} now ({1}).\n'.format(myArgs.hosts, str(datetime.now()).split('.',2)[0]))
       sys.stdout.flush()
       latestScan, latestScanOut = doScan(myArgs.hosts, ' '.join(myArgs.options))
-      if not myArgs.noFiles:
-         with open('latestScan.xml', 'w') as f:
-            try:
-               f.write(latestScanOut)
-            except IOError as e:
-               sys.stderr.write('Exception raised while writing file: {0}'.format(e.msg))
-               sys.stderr.write('Continuing....')
-      nmDiffHosts = [ x for x in startScan.diff(latestScan).changed() if 'NmapHost' in x ]
-      if len(nmDiffHosts) > 0:
-         sys.stdout.write('\n')
+      # Make sure we got a good return
+      if latestScan:
+         # Write XML outfile if configured to
+         if not myArgs.noFiles:
+            with open('latestScan.xml', 'w') as f:
+               try:
+                  f.write(latestScanOut)
+               except IOError as e:
+                  sys.stderr.write('Exception raised while writing file: {0}'.format(e.msg))
+                  sys.stderr.write('Continuing....')
+
+         # Show our differences between this run and last run
          print_diff(latestScan, startScan)
-      startScan = latestScan
+         startScan = latestScan
 
 if __name__ == '__main__':
-   import argparse, datetime
-   from pydoc import pager
-   from select import select
-   from datetime import datetime, timedelta
-   from time import sleep
+   # extra imports not necessary without main
+   import argparse
    main()
