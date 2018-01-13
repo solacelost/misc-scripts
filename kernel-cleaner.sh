@@ -7,10 +7,10 @@ fi
 
 
 debugsw=""
-oldkernels="$(ls -1 /boot | egrep -o '[0-9]\.[0-9]\.[0-9]-[0-9]+-generic' | sort -V | uniq | head -n -2)"
-kernelfiles="$(ls -1 /boot | egrep '[0-9]\.[0-9]\.[0-9]-[0-9]+-generic' | cut -d '-' -f 1 | sort | uniq)"
+oldkernels="$(ls -1 /boot | egrep -o '[0-9]+\.[0-9]+\.[0-9]+-[0-9]+-generic' | sort -Vu | head -n -2)"
+kernelfiles="$(ls -1 /boot | egrep '[0-9]+\.[0-9]+\.[0-9]+-[0-9]+-generic' | cut -d '-' -f 1 | sort | uniq)"
 kernelpackages=$(dpkg -l 'linux-*' | sed '/^ii/!d;s/^[^ ]* [^ ]* \([^ :]*\).*/\1/;/[0-9]/!d')
-saveversionpackages=$(echo "$kernelpackages" | sed -n 's/[^0-9]*-\([0-9.-]*\)$/\1/p' | sort -u | tail -2)
+saveversionpackages=$(echo "$kernelpackages" | sed -n 's/[^0-9]*-\([0-9.-]*\)$/\1/p' | sort -Vu | tail -2)
 
 for kernelversion in $saveversionpackages; do
 	kernelpackages=$(echo "$kernelpackages" | grep -v $kernelversion)
@@ -26,7 +26,6 @@ while [[ $# -gt 0 ]]; do
 			echo ""
 			echo "Executing the following commands:"
 			echo "-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-"
-			shift
 		;;
 		-h|--help)
 			echo -e "Usage:\n# $0 [-d|--debug]"
@@ -38,6 +37,7 @@ while [[ $# -gt 0 ]]; do
 			exit 1
 		;;
 	esac
+	shift
 done
 
 if [ "$kernelpackages" ]; then
