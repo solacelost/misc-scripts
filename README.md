@@ -16,4 +16,4 @@ A tool that continuously nmaps a host (or whatever you tell it to) and gives you
 
 ### phonehome
 ---
-A port knocking script for interfacing with SSH (or some other service, I suppose) hidden behind a port-knocking daemon, such as [knockd](https://github.com/jvinet/knock). Come default configuration parameters are set inside the script, and then it's customizable. There's a pretty thorough help page, but some code review might help, too.
+A port knocking script for interfacing with SSH (or some other service, I suppose) hidden behind a port-knocking daemon, such as [knockd](https://github.com/jvinet/knock). Some default configuration parameters are set inside the script, and then you can change things with some command line switches. There's a pretty thorough help page, but some code review might help, too.
