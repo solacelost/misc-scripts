@@ -1,0 +1,115 @@
+#!/bin/bash
+
+# Set some variables
+homeDir=$(ls -d ~)
+file="${homeDir}/.timeuntil"
+if [ ! -e $file ]; then
+	touch $file
+elif [ ! -f $file ]; then
+	echo "Invalid countdown file: $file"
+	exit 1
+fi
+now=$(date +%s)
+records=$(cat $file | base64 -d)
+numRecords=$(echo $records | grep -o '::' | wc -l)
+usage="\
+Usage: $(basename $0) [--short|-s]              #get time until destination
+       $(basename $0) [--add|-a] \"time\" \"name\"  #assign time to the name
+       $(basename $0) [--trim|-t]               #remove old trackers
+       $(basename $0) [--reset|-r]              #reset trackers"
+doShort=false
+
+# Option handling
+if [ $# -gt 0 ]; then
+	case $1 in
+		# Add a new record
+		--add|-a)
+			if [ $# -ne 3 ]; then
+				echo "$usage"
+				exit 1
+			fi
+			records+="$(echo $3 | tr -d ':'):"$(date -d "$2" +%s)"::"
+			echo $records | base64 > $file
+			;;
+		# Reset the record file
+		--reset|-r)
+			echo -n '' > $file
+			exit
+			;;
+		# Short output lines
+		--short|-s)
+			doShort=true
+			;;
+		# Remove old records (time before now)
+		--trim|-t)
+			records=$(echo $records | awk -F:: -v "now=${now}" ' {
+				for (i=1; i<NF; i++) {
+					split($i, r, ":")
+					if (r[2] < now) {
+						next
+					}
+					printf("%s::", $i)
+				}
+			}')
+			echo $records | base64 > $file
+			;;
+		# Print help
+		--help|-h)
+			echo "$usage"
+			exit
+			;;
+		# Wat
+		*)
+			echo "$usage"
+			exit 1
+			;;
+	esac
+fi
+
+# Process records
+echo $records | sed 's/::/\n/g' | sed '/^$/d' | while IFS= read record; do
+	recordName=$(echo $record | cut -d: -f1)
+	recordTime=$(echo $record | cut -d: -f2)
+	
+	# Set the difference, determine if it's old
+	timeDiff=$(( $recordTime - $now ))
+	if [ $timeDiff -lt 1 ]; then 
+		echo "$recordName already happened."
+		records="${records#$record"::"}"
+		numRecords=$(( $numRecords - 1 ))
+		continue
+	fi
+	
+	# Chunk it down to weeks
+	seconds=$(( $timeDiff % 60 ))
+	timeDiff=$(( $timeDiff - $seconds ))
+	
+	minutes=$(( $timeDiff % 3600 / 60 ))
+	interval=$(( $timeDiff - $minutes ))
+	
+	hours=$(( $timeDiff % 86400 / 3600 ))
+	interval=$(( $timeDiff - $hours ))
+	
+	days=$(( $timeDiff % 604800 / 86400 ))
+	interval=$(( $timeDiff - $hours ))
+	
+	weeks=$(( $timeDiff / 604800 ))
+	
+	# Print this record, omitting unnecessary bits.
+	printLine=''
+	if [ "$doShort" == "true" ]; then
+		[ $weeks -ne 0 ] && printLine+="$weeks wks, "
+		[ $days -ne 0 ] && printLine+="$days days, "
+		[ $hours -ne 0 ] && printLine+="$hours hrs, "
+		[ $minutes -ne 0 ] && printLine+="$minutes mins, "
+		printLine="${printLine%,*} until $recordName."
+	else
+		[ $weeks -ne 0 ] && printLine+="$weeks weeks, "
+		[ $days -ne 0 ] && printLine+="$days days, "
+		[ $hours -ne 0 ] && printLine+="$hours hours, "
+		[ $minutes -ne 0 ] && printLine+="$minutes minutes, "
+		[ $seconds -ne 0 ] && printLine+="$seconds seconds, "
+		printLine="${printLine%,*} until $recordName."
+	fi
+	echo "$printLine"
+done
