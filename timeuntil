@@ -85,13 +85,13 @@ echo $records | sed 's/::/\n/g' | sed '/^$/d' | while IFS= read record; do
 	timeDiff=$(( $timeDiff - $seconds ))
 	
 	minutes=$(( $timeDiff % 3600 / 60 ))
-	interval=$(( $timeDiff - $minutes ))
+	timeDiff=$(( $timeDiff - $minutes ))
 	
 	hours=$(( $timeDiff % 86400 / 3600 ))
-	interval=$(( $timeDiff - $hours ))
+	timeDiff=$(( $timeDiff - $hours ))
 	
 	days=$(( $timeDiff % 604800 / 86400 ))
-	interval=$(( $timeDiff - $hours ))
+	timeDiff=$(( $timeDiff - $hours ))
 	
 	weeks=$(( $timeDiff / 604800 ))
 	
