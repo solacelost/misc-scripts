@@ -27,7 +27,7 @@ try:
    from libnmap.process import NmapProcess
    from libnmap.parser import NmapParser, NmapParserException
 except:
-   sys.stderr.write('You need libnmap to use this file.\n`pip install libnmap` or source your virtualenv.\n')
+   sys.stderr.write('You need libnmap to use this file.\n`pip install python-libnmap` or source your virtualenv.\n')
    sys.stderr.flush()
    exit(1)
 
