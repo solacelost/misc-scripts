@@ -70,7 +70,7 @@ def doScan(targets, options):
       return (None, None)
    # Try to parse it
    try:
-		parsed = NmapParser.parse(nmproc.stdout)
+        parsed = NmapParser.parse(nmproc.stdout)
    except NmapParserException as e:
       sys.stderr.write("Exception raised while parsing scan: {0}".format(e.msg))
       return (None, None)
