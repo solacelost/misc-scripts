@@ -18,6 +18,10 @@ A tool that continuously nmaps a host (or whatever you tell it to) and gives you
 ---
 A port knocking script for interfacing with SSH (or some other service, I suppose) hidden behind a port-knocking daemon, such as [knockd](https://github.com/jvinet/knock). Some default configuration parameters are set inside the script, and then you can change things with some command line switches. There's a pretty thorough help page, but some code review might help, too.
 
-## timeuntil
+### timeuntil
 ---
 A script that can maintain some countdowns for you, with full `date` specification support.
+
+### Set-SleepTimer
+---
+My wife uses her computer connected to the TV in our bedroom, and falls asleep with it on. When we set the sleep timer on the TV, the computer keeps streaming Netflix (or whatever) through its own speakers/screen. This is awful. If the computer goes to sleep, however, the TV will time itself out and turn off - so here you go, dear. A powershell script to hibernate or sleep your computer on a timer, which warns you when your time is coming up. If you prefer Sleep behavior over Hibernate, from an elevated prompt run `powercfg -h off` prior to running the script. Ensure your PowerShell ExecutionPolicy is set appropriately to run, or bypass it from the shortcut (e.g. Target: `"%SystemRoot%\system32\WindowsPowerShell\v1.0\powershell.exe" -executionpolicy bypass -command C:\path\to\Set-SleepTimer.ps1`)
