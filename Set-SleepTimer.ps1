@@ -191,6 +191,7 @@ function genDateTime([string]$path, [string]$name) {
     [DateTime]::FromFileTime( $( Get-ItemProperty -path $path -name $name).$name )
 }
 function endIt([int]$code=0) {
+    Start-Sleep 1
     if ( $debug ) { pause }
     exit $code
 }
@@ -338,11 +339,10 @@ if ( -not $confirmRun ) {
                     # Tear everything down
                     Write-Host 'Executing sleep'
                     Remove-ItemProperty -path $regPath -name $myGuid
-                    if ( Test-Path variable:global:confProc ) {
-                        Stop-Process $confProc -force
-                    }
+                    Stop-Process $confProc -force
                     if ( -not $debug ) {
                         # Actually suspend
+                        Start-Sleep 1
                         & rundll32.exe powrprof.dll,SetSuspendState 0,1,0
                     }
                     endIt
