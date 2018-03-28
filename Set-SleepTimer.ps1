@@ -3,9 +3,7 @@
 .SYNOPSIS
 	Set-SleepTimer
 	Copyright 2018 James Harmison <jharmison@gmail.com>
-	Enumerates the target system using a combination of WMI objects, native
-	PowerShell cmdlets, and external commands before formatting output into
-	tables and writing to a file for later comparison.
+	Set a sleep timer for your computer.
 .DESCRIPTION
 	Uses .NET Forms to prompt the user to enter a sleep timer duration,
 	launches a process to manage a five-minute warning popup, and puts the
@@ -204,9 +202,7 @@ Write-Host 'Set-SleepTimer
 
 	Copyright 2018 James Harmison <jharmison@gmail.com>
 
-	Enumerates the target system using a combination of WMI objects, native
-	PowerShell cmdlets, and external commands before formatting output into
-	tables and writing to a file for later comparison.
+	Set a sleep timer for your computer.
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
