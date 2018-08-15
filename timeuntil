@@ -98,17 +98,17 @@ echo $records | sed 's/::/\n/g' | sed '/^$/d' | while IFS= read record; do
 	# Print this record, omitting unnecessary bits.
 	printLine=''
 	if [ "$doShort" == "true" ]; then
-		[ $weeks -ne 0 ] && printLine+="$weeks wks, "
-		[ $days -ne 0 ] && printLine+="$days days, "
-		[ $hours -ne 0 ] && printLine+="$hours hrs, "
-		[ $minutes -ne 0 ] && printLine+="$minutes mins, "
-		printLine="${printLine%,*} until $recordName."
+		[ $weeks -ne 0 ] && { [ $weeks -gt 1 ] && printLine+="$weeks wks, " || printLine+="$weeks wk, "; }
+		[ $days -ne 0 ] && { [ $days -gt 1 ] && printLine+="$days days, " || printLine+="$days day, "; }
+		[ $hours -ne 0 ] && { [ $hours -gt 1 ] && printLine+="$hours hrs, " || printLine+="$hours hr, "; }
+		[ $minutes -ne 0 ] && { [ $minutes -gt 1 ] && printLine+="$minutes mins, " || printLine+="$mintues min, "; }
+		printLine="${printLine%,*} til $recordName."
 	else
-		[ $weeks -ne 0 ] && printLine+="$weeks weeks, "
-		[ $days -ne 0 ] && printLine+="$days days, "
-		[ $hours -ne 0 ] && printLine+="$hours hours, "
-		[ $minutes -ne 0 ] && printLine+="$minutes minutes, "
-		[ $seconds -ne 0 ] && printLine+="$seconds seconds, "
+		[ $weeks -ne 0 ] && { [ $weeks -gt 1 ] && printLine+="$weeks weeks, " || printLine+="$weeks week, "; }
+		[ $days -ne 0 ] && { [ $days -gt 1 ] && printLine+="$days days, " || printLine+="$days day, "; }
+		[ $hours -ne 0 ] && { [ $hours -gt 1 ] && printLine+="$hours hours, " || printLine+="$hours hour, "; }
+		[ $minutes -ne 0 ] && { [ $minutes -gt 1 ] && printLine+="$minutes minutes, " || printLine+="$mintues minute, "; }
+		[ $seconds -ne 0 ] && { [ $seconds -gt 1 ] && printLine+="$seconds seconds, " || printLine+="$seconds seconds, "; }
 		printLine="${printLine%,*} until $recordName."
 	fi
 	echo "$printLine"
