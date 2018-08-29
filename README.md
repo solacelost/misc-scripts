@@ -25,3 +25,7 @@ A script that can maintain some countdowns for you, with full `date` specificati
 ### Set-SleepTimer
 ---
 My wife uses her computer connected to the TV in our bedroom, and falls asleep with it on. When we set the sleep timer on the TV, the computer keeps streaming Netflix (or whatever) through its own speakers/screen. This is awful. If the computer goes to sleep, however, the TV will time itself out and turn off - so here you go, dear. A powershell script to hibernate or sleep your computer on a timer, which warns you when your time is coming up. If you prefer Sleep behavior over Hibernate, from an elevated prompt run `powercfg -h off` prior to running the script. Ensure your PowerShell ExecutionPolicy is set appropriately to run, or bypass it from the shortcut (e.g. Target: `"%SystemRoot%\system32\WindowsPowerShell\v1.0\powershell.exe" -executionpolicy bypass -command C:\path\to\Set-SleepTimer.ps1`)
+
+### sleeptimer.sh
+---
+Okay, so I've finally convinced her to use Linux on the computer hooked to the TV since I got HBO Go to work effectively in a native Linux browser. Basically, this does what the above does, but in bash instead of PowerShell. A few tweaks to just a couple conditionals and you could make it run on generic shell, too, but you'll have to either have zenity or swap it out for something on your Mac or whatever. Outputs debug information to stderr, but I start it with `Terminal=false` in the .desktop file for the most part.
