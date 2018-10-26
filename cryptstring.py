@@ -20,7 +20,7 @@ import os
 import random
 import string
 
-def sha512_crypt(password, salt=None, rounds=None):
+def sha_crypt(password, algo=512, salt=None, rounds=None):
     '''
     Generates crypt-compatible sha512 password strings
         - relies on system CSRNG
@@ -28,14 +28,37 @@ def sha512_crypt(password, salt=None, rounds=None):
         - randomly generates 16-character salt if not provided
         - basically just a nice crypt.crypt wrapper
     '''
-    # Generate random 16-character salt if one isn't provided
+    # check algo type
+    if not isinstance(algo, int):
+        raise TypeError()
+
+    # check rounds type
+    if not isinstance(rounds, int) and rounds is not None:
+        raise TypeError()
+
+    # check algo value
+    if algo not in [ 512, 256 ]:
+        raise ValueError(message="Invalid algorithm value passed, 256 or 512 \
+                         expected")
+
+    if algo == 256:
+        saltlen = 8
+    else:
+        saltlen = 16
+
+    # Generate random 8-16 character salt if one isn't provided
     if salt is None:
         rand = random.SystemRandom()
         salt = ''.join([rand.choice(string.ascii_letters + string.digits)
-                        for _ in range(16)])
+                        for _ in range(saltlen)])
+    else:
+        salt = str(salt)
 
-    # Define our hash type as crypt-compatible sha512
-    prefix = '$6$'
+    # Define our hash type as crypt-compatible sha512 or sha256
+    if algo == 256:
+        prefix = '$5$'
+    else:
+        prefix = '$6$'
 
     # If they specifically called for non-standard rounds
     if rounds is not None:
@@ -56,6 +79,12 @@ if __name__ == '__main__':
             crypt-string result',
         usage='%(prog)s [options]',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument(
+        '-a', '--algo',
+        help='specify a sha algorithm to use. choose from: [ 512 , 256 ]',
+        type=int,
+        default=512
     )
     parser.add_argument(
         '-s', '--script',
@@ -90,13 +119,14 @@ if __name__ == '__main__':
         args.script = True # So we'll just force script mode
 
     if args.script: # Just read from stdin and push the cryptstring
-        print(sha512_crypt(sys.stdin.readline().rstrip(), salt=args.salt))
+        print(sha_crypt(sys.stdin.readline().rstrip(), algo=args.algo, salt=args.salt))
     else: # Loop until they get matching confirmation
         while True:
             # Save off a crypt-hashed password
-            pass_attempt = sha512_crypt(
+            pass_attempt = sha_crypt(
                 getpass.getpass(prompt=args.prompt,
                     stream=sys.stderr),
+                algo=args.algo,
                 salt=args.salt
             )
 
@@ -105,16 +135,17 @@ if __name__ == '__main__':
 
             if not args.empty_allowed:
                 # If they tried to pass a blank string, reject that
-                if sha512_crypt(password='', salt=salt) == pass_attempt:
+                if sha_crypt(password='', algo=args.algo, salt=salt) == pass_attempt:
                     sys.stderr.write(
                         'Empty passwords not allowed. Try again.\n'
                     )
                     continue
 
             # Confirm the password, if they don't match have them try again
-            confirm_pass = sha512_crypt(
+            confirm_pass = sha_crypt(
                 getpass.getpass(prompt=args.confirm_prompt,
                     stream=sys.stderr),
+                algo=args.algo,
                 salt=salt
             ) 
             if confirm_pass != pass_attempt:
