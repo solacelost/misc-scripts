@@ -129,7 +129,7 @@ while getopts "hqudp:" opt; do
 done
 
 # We really want setup.py or requirements.txt
-if [ ! -e setup.py -a ! -e requirements.txt]; then
+if [ ! -e setup.py -a ! -e requirements.txt ]; then
     wrap "No setup.py or requirements.txt detected adacent to the script in" \
          "$(pwd), check \`$0 -h\` for more information." >&2
     exit 1
